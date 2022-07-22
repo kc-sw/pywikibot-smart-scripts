@@ -1,0 +1,5 @@
+A collection of scripts for use with Pywikibot (https://www.mediawiki.org/wiki/Manual:Pywikibot)
+
+= Scripts =
+
+* nlp_correct.py - This uses Python's textblob library to do NLP processing and subsequent correcting. Lines with special characters are ignored to prevent messing with templates. See replace.py for most applicable arguments. Beware as this will commonly suggest bad changes.
