@@ -77,7 +77,7 @@ the top of the help.
 
 try:
     import textblob
-except ImportError:
+except ModuleNotFoundError:
     textblob_imported = False
 else:
     textblob_imported = True

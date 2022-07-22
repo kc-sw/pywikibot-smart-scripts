@@ -3,4 +3,4 @@ A collection of scripts for use with Pywikibot (https://www.mediawiki.org/wiki/M
 = Scripts =
 
 * nlp_correct.py - This uses Python's textblob library to do NLP processing and subsequent correcting. Lines with special characters are ignored to prevent messing with templates. See replace.py for most applicable arguments. Beware as this will commonly suggest bad changes.
-* smart_replace.py - Extra options added to the default replace.py. -minchanges:x will skip changes that use fewer than x replacement categories.
+* smart_replace.py - Extra options added to the default replace.py. -minchanges:x will skip changes that use fewer than x replacement categories. Useful for preventing minor changes.
