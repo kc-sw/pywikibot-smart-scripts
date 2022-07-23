@@ -107,7 +107,9 @@ except ModuleNotFoundError:
 else:
     requests_imported = True
 
+AMASS_LINES = True
 BING_API_URI = "https://api.bing.microsoft.com/v7.0/spellcheck"
+disallowed_chars = set("#$%()*+<=>@[]^_`{|}~")
 
 import time
 import codecs
@@ -464,17 +466,43 @@ class ReplaceRobot(SingleSiteBot, ExistingPageBot):
         if self.opt.sleep:
             pywikibot.sleep(self.opt.sleep)
         new_text = ""
+        data = ""
+        data_array = []
+        post_data = ""
+        line_disallowed = False
         for line in old_text.split("\n"):
-            disallowed_chars = set("#$%()*+<=>@[]^_`{|}~")
             if set(disallowed_chars) - set(line) != disallowed_chars:
-                #pywikibot.output('"' + line + '" has disallowed characters, skipping.')
-                new_text += line
-            else:
-                data = line.replace(" ", "+")
-                if self.opt.spellmode:
-                    data += "&mode=spell"
+                if data:
+                    #We're amassing data but we can't use this line. Let's just
+                    #use what we currently have in data and append this line
+                    #afterwards.
+                    #TODO: There's a smarter way to handle this, probably.
+                    post_data = line
                 else:
-                    data += "&mode=proof"
+                    #Unusable line but we have nothing in buffer, so add and go
+                    new_text += line
+                    continue
+            else: #Line isn't unreadable
+                if data: data += "\n" #We're appending more lines
+                data =+ line.replace(" ", "+")
+                if AMASS_LINES and len(data) < 1000:
+                    #We can use up to 1500 characters. Let's munch this in and
+                    #send more
+                    continue
+                if len(data) > 1500:
+                    #Scheisse, this is too long. Find the last space and split
+                    #by it
+                    while len(data) > 1500:
+                        last_space_index = data[:1490].rindex(" ")
+                        data_array.append(data[:last_space_index])
+                        data = data[last_space_index:]
+            data_array.append(data)
+            new_data = "" #We're about to construct our next set of final data
+            for data_substring in data_array:
+                if self.opt.spellmode:
+                    data_substring += "&mode=spell"
+                else:
+                    data_substring += "&mode=proof"
 
                 if self.opt.ratelimit:
                     #request_time = int(time.time())
@@ -489,8 +517,10 @@ class ReplaceRobot(SingleSiteBot, ExistingPageBot):
                     assert self.opt.totalrequests > self.total_calls_made
                     #TODO: Raise/quit properly. This is called baad practice.
                 request = None
+
                 if self.opt.forceget:
-                    request = requests.get(BING_API_URI + "?text=" + data
+                    request = requests.get(BING_API_URI + "?text="
+                        + data_substring
                         headers={
                             'Ocp-Apim-Subscription-Key': self.opt.subscription_key
                             })
@@ -500,11 +530,18 @@ class ReplaceRobot(SingleSiteBot, ExistingPageBot):
                             'Content-Type': 'application/x-www-form-urlencoded',
                             'Ocp-Apim-Subscription-Key': self.opt.subscription_key,
                             },
-                        data=data)
-                new_line = request.data #TODO: What is API return?
+                        data=data_substring)
 
                 self.total_calls_made += 1
-            new_text += new_line + "\n"
+                new_data += request.data #TODO: What is API return?
+
+            new_text += new_data + "\n" #All our processed stuff
+            if post_data:
+                new_text += post_data + "\n" #But also the line we couldn't do
+            data = ""
+            data_array = []
+            post_data = ""
+            new_line = ""
 
         return new_text[:-1]
 
